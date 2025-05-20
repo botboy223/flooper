@@ -22,8 +22,8 @@
             position: fixed;
             top: 0;
             width: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(12px);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(15px);
             padding: 1rem;
             text-align: center;
             z-index: 10;
@@ -40,11 +40,11 @@
             margin: 120px auto 100px;
             max-width: 900px;
             padding: 2.5rem;
-            background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(15px);
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(18px);
             border-radius: 20px;
             box-shadow: 0 8px 40px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
             z-index: 5;
             text-align: center;
             animation: fadeIn 1.2s ease-in;
@@ -63,31 +63,12 @@
             line-height: 1.7;
             margin: 1rem 0;
         }
-        .controls {
-            margin-top: 2rem;
-            display: flex;
-            justify-content: center;
-            gap: 1rem;
-        }
-        .control-btn {
-            padding: 0.8rem 1.5rem;
-            background: rgba(255, 51, 51, 0.2);
-            border: 1px solid rgba(255, 51, 51, 0.5);
-            color: #fff;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: background 0.3s, transform 0.2s;
-        }
-        .control-btn:hover {
-            background: rgba(255, 51, 51, 0.4);
-            transform: scale(1.05);
-        }
         footer {
             position: fixed;
             bottom: 0;
             width: 100%;
-            background: rgba(0, 0, 0, 0.6);
-            backdrop-filter: blur(12px);
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(15px);
             padding: 1rem;
             text-align: center;
             z-index: 10;
@@ -110,22 +91,19 @@
     <main>
         <h2>Discover High-Performance Cars 🚘</h2>
         <p>
-            Experience the pinnacle of automotive innovation with our curated collection of cars! 
-            From lightning-fast electric vehicles ⚡️ to timeless classics, each model showcases cutting-edge 
-            design and engineering. Interact with our lifelike lizard cursor 🦎 that follows your mouse, 
-            blending nature with technology in a dynamic display.
+            Experience the thrill of automotive excellence with our curated collection of cars! 
+            From lightning-fast electric vehicles ⚡️ to iconic classics, each model showcases 
+            cutting-edge design and engineering. Watch our lifelike lizard cursor 🦎 dart across 
+            the screen, mimicking the agility of a real reptile as it follows your mouse.
             <span class="emoji">🔥</span>
         </p>
         <p>
-            Control the lizard’s behavior with the buttons below to toggle realistic movements or speed up its chase. 
-            The transparent glass effect lets you see the intricate lizard structure in the background, creating a 
-            mesmerizing fusion of nature and automotive artistry. 
+            The transparent glass effect reveals the intricate, lifelike movements of the lizard 
+            in the background, blending nature’s agility with automotive artistry. Enjoy the dynamic 
+            interplay as the lizard scurries and pauses, bringing a touch of the wild to this 
+            high-tech showcase. 
             <span class="emoji">🌟</span>
         </p>
-        <div class="controls">
-            <button class="control-btn" onclick="toggleRealistic()">Toggle Realistic Mode 🦎</button>
-            <button class="control-btn" onclick="toggleSpeed()">Toggle Speed Boost ⚡</button>
-        </div>
     </main>
     <footer>
         <p>© 2025 Reptile Cursor Showcase | Powered by xAI <span class="emoji">🦎</span></p>
@@ -169,14 +147,14 @@
         var ctx = canvas.getContext("2d");
 
         var segmentCount = 0;
-        var realisticMode = false;
-        var speedBoost = false;
 
         class Segment {
-            constructor(parent, size, angle, range, stiffness, isLeg = false) {
+            constructor(parent, size, angle, range, stiffness, isLeg = false, isHead = false, isTail = false) {
                 segmentCount++;
                 this.isSegment = true;
                 this.isLeg = isLeg;
+                this.isHead = isHead;
+                this.isTail = isTail;
                 this.parent = parent;
                 if (typeof parent.children === "object") {
                     parent.children.push(this);
@@ -188,11 +166,11 @@
                 this.absAngle = parent.absAngle + angle;
                 this.range = range;
                 this.stiffness = stiffness;
-                this.oscillation = 0; // For realistic swaying
+                this.oscillation = Math.random() * Math.PI * 2; // Random phase for organic motion
                 this.updateRelative(false, true);
             }
             updateRelative(iter, flex) {
-                this.relAngle = this.relAngle - 2 * Math.PI * Math.floor((this.relAngle - this.defAngle) / (2 * Math.PI) + 0.5);
+                this.relAngle -= 2 * Math.PI * Math.floor((this.relAngle - this.defAngle) / (2 * Math.PI) + 0.5);
                 if (flex) {
                     this.relAngle = Math.min(
                         this.defAngle + this.range / 2,
@@ -201,9 +179,9 @@
                             (this.relAngle - this.defAngle) / this.stiffness + this.defAngle
                         )
                     );
-                    if (realisticMode && !this.isLeg) {
-                        this.oscillation += 0.05;
-                        this.relAngle += Math.sin(this.oscillation) * 0.1;
+                    this.oscillation += 0.08;
+                    if (!this.isLeg) {
+                        this.relAngle += Math.sin(this.oscillation) * (this.isHead ? 0.15 : this.isTail ? 0.2 : 0.1);
                     }
                 }
                 this.absAngle = this.parent.absAngle + this.relAngle;
@@ -219,28 +197,34 @@
                 ctx.beginPath();
                 ctx.moveTo(this.parent.x, this.parent.y);
                 ctx.lineTo(this.x, this.y);
-                if (this.isLeg) {
-                    ctx.lineWidth = 3;
-                    ctx.strokeStyle = realisticMode ? "rgba(200, 50, 50, 0.8)" : "red";
-                } else {
-                    ctx.lineWidth = realisticMode ? 2 : 1;
-                    ctx.strokeStyle = realisticMode ? "rgba(255, 100, 100, 0.7)" : "red";
-                }
-                if (realisticMode) {
-                    ctx.shadowBlur = 5;
-                    ctx.shadowColor = "rgba(255, 50, 50, 0.5)";
-                    // Add scale-like texture
-                    for (let i = 0; i < this.size; i += 5) {
-                        let t = i / this.size;
-                        let x = this.parent.x + (this.x - this.parent.x) * t;
-                        let y = this.parent.y + (this.y - this.parent.y) * t;
-                        ctx.beginPath();
-                        ctx.arc(x, y, 1, 0, 2 * Math.PI);
-                        ctx.fillStyle = "rgba(255, 150, 150, 0.5)";
-                        ctx.fill();
-                    }
+                ctx.lineWidth = this.isLeg ? 4 : this.isHead ? 6 : this.isTail ? 2 : 3;
+                ctx.strokeStyle = this.isLeg ? "rgba(200, 50, 50, 0.9)" : "rgba(255, 100, 100, 0.8)";
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = "rgba(255, 50, 50, 0.6)";
+                // Draw scale patterns
+                for (let i = 0; i < this.size; i += 3) {
+                    let t = i / this.size;
+                    let x = this.parent.x + (this.x - this.parent.x) * t;
+                    let y = this.parent.y + (this.y - this.parent.y) * t;
+                    ctx.beginPath();
+                    ctx.arc(x, y, this.isLeg ? 1.5 : 1, 0, 2 * Math.PI);
+                    ctx.fillStyle = "rgba(255, 150, 150, 0.6)";
+                    ctx.fill();
                 }
                 ctx.stroke();
+                // Head details
+                if (this.isHead) {
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, 5, 0, 2 * Math.PI);
+                    ctx.fillStyle = "rgba(200, 50, 50, 0.9)";
+                    ctx.fill();
+                    // Eyes
+                    ctx.beginPath();
+                    ctx.arc(this.x + 2, this.y - 2, 1, 0, 2 * Math.PI);
+                    ctx.arc(this.x - 2, this.y - 2, 1, 0, 2 * Math.PI);
+                    ctx.fillStyle = "white";
+                    ctx.fill();
+                }
                 ctx.shadowBlur = 0;
                 if (iter) {
                     for (var i = 0; i < this.children.length; i++) {
@@ -270,7 +254,7 @@
                 this.end = end;
                 this.length = Math.max(1, length);
                 this.creature = creature;
-                this.speed = speed * (speedBoost ? 1.5 : 1);
+                this.speed = speed * 2; // Doubled speed
                 creature.systems.push(this);
                 this.nodes = [];
                 var node = end;
@@ -326,21 +310,25 @@
                 relAngle -= 2 * Math.PI * Math.floor(relAngle / (2 * Math.PI) + 0.5);
                 this.swing = -relAngle + (2 * (relAngle < 0) - 1) * Math.PI / 2;
                 this.swingOffset = this.creature.absAngle - this.hip.absAngle;
-                this.stepPhase = Math.random() * Math.PI * 2; // Random phase for leg coordination
+                this.stepPhase = Math.random() * Math.PI * 2;
+                this.pauseTimer = Math.random() * 100;
             }
             update(x, y) {
-                this.moveTo(this.goalX, this.goalY);
-                if (realisticMode) {
-                    this.stepPhase += 0.1;
-                    this.goalX += Math.sin(this.stepPhase) * this.reach * 0.1;
-                    this.goalY += Math.cos(this.stepPhase) * this.reach * 0.1;
+                this.pauseTimer++;
+                this.stepPhase += 0.15; // Faster leg cycling
+                this.goalX += Math.sin(this.stepPhase) * this.reach * 0.15;
+                this.goalY += Math.cos(this.stepPhase) * this.reach * 0.15;
+                if (this.pauseTimer % 200 < 50) {
+                    this.moveTo(this.end.x, this.end.y); // Pause briefly
+                    return;
                 }
+                this.moveTo(this.goalX, this.goalY);
                 if (this.step === 0) {
                     var dist = ((this.end.x - this.goalX) ** 2 + (this.end.y - this.goalY) ** 2) ** 0.5;
                     if (dist > 1) {
                         this.step = 1;
-                        this.goalX = this.hip.x + this.reach * Math.cos(this.swing + this.hip.absAngle + this.swingOffset) + (2 * Math.random() - 1) * this.reach / 2;
-                        this.goalY = this.hip.y + this.reach * Math.sin(this.swing + this.hip.absAngle + this.swingOffset) + (2 * Math.random() - 1) * this.reach / 2;
+                        this.goalX = this.hip.x + this.reach * Math.cos(this.swing + this.hip.absAngle + this.swingOffset) + (2 * Math.random() - 1) * this.reach / 1.5;
+                        this.goalY = this.hip.y + this.reach * Math.sin(this.swing + this.hip.absAngle + this.swingOffset) + (2 * Math.random() - 1) * this.reach / 1.5;
                     }
                 } else if (this.step === 1) {
                     var theta = Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x) - this.hip.absAngle;
@@ -348,7 +336,7 @@
                     var forwardness2 = dist * Math.cos(theta);
                     var dF = this.forwardness - forwardness2;
                     this.forwardness = forwardness2;
-                    if (dF * dF < 1) {
+                    if (dF * dF < 0.5) {
                         this.step = 0;
                         this.goalX = this.hip.x + (this.end.x - this.hip.x);
                         this.goalY = this.hip.y + (this.end.y - this.hip.y);
@@ -363,18 +351,19 @@
                 this.y = y;
                 this.absAngle = angle;
                 this.fSpeed = 0;
-                this.fAccel = fAccel * (speedBoost ? 1.5 : 1);
+                this.fAccel = fAccel * 2.5; // Significantly faster
                 this.fFric = fFric;
                 this.fRes = fRes;
                 this.fThresh = fThresh;
                 this.rSpeed = 0;
-                this.rAccel = rAccel;
+                this.rAccel = rAccel * 1.5; // Faster rotation
                 this.rFric = rFric;
                 this.rRes = rRes;
                 this.rThresh = rThresh;
                 this.children = [];
                 this.systems = [];
-                this.oscillation = 0; // For body swaying
+                this.oscillation = Math.random() * Math.PI * 2;
+                this.headBob = 0;
             }
             follow(x, y) {
                 var dist = ((this.x - x) ** 2 + (this.y - y) ** 2) ** 0.5;
@@ -401,11 +390,9 @@
                 } else {
                     this.rSpeed = 0;
                 }
-                this.absAngle += this.rSpeed;
-                if (realisticMode) {
-                    this.oscillation += 0.03;
-                    this.absAngle += Math.sin(this.oscillation) * 0.05;
-                }
+                this.oscillation += 0.05;
+                this.headBob += 0.1;
+                this.absAngle += this.rSpeed + Math.sin(this.oscillation) * 0.08;
                 this.absAngle -= 2 * Math.PI * Math.floor(this.absAngle / (2 * Math.PI) + 0.5);
                 this.x += this.speed * Math.cos(this.absAngle);
                 this.y += this.speed * Math.sin(this.absAngle);
@@ -420,21 +407,38 @@
                 this.draw(true);
             }
             draw(iter) {
-                var r = realisticMode ? 6 : 4;
+                var r = 8;
                 ctx.beginPath();
-                ctx.arc(this.x, this.y, r, Math.PI / 4 + this.absAngle, 7 * Math.PI / 4 + this.absAngle);
-                ctx.moveTo(this.x + r * Math.cos(7 * Math.PI / 4 + this.absAngle), this.y + r * Math.sin(7 * Math.PI / 4 + this.absAngle));
-                ctx.lineTo(this.x + r * Math.cos(this.absAngle) * 2 ** 0.5, this.y + r * Math.sin(this.absAngle) * 2 ** 0.5);
-                ctx.lineTo(this.x + r * Math.cos(Math.PI / 4 + this.absAngle), this.y + r * Math.sin(Math.PI / 4 + this.absAngle));
-                ctx.strokeStyle = realisticMode ? "rgba(200, 50, 50, 0.9)" : "red";
-                ctx.lineWidth = realisticMode ? 4 : 2;
-                if (realisticMode) {
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = "rgba(255, 50, 50, 0.6)";
-                    // Draw head details
-                    ctx.fillStyle = "rgba(255, 100, 100, 0.7)";
+                ctx.arc(
+                    this.x + Math.sin(this.headBob) * 2,
+                    this.y + Math.cos(this.headBob) * 2,
+                    r,
+                    Math.PI / 4 + this.absAngle,
+                    7 * Math.PI / 4 + this.absAngle
+                );
+                ctx.moveTo(
+                    this.x + Math.sin(this.headBob) * 2 + r * Math.cos(7 * Math.PI / 4 + this.absAngle),
+                    this.y + Math.cos(this.headBob) * 2 + r * Math.sin(7 * Math.PI / 4 + this.absAngle)
+                );
+                ctx.lineTo(
+                    this.x + Math.sin(this.headBob) * 2 + r * Math.cos(this.absAngle) * 2 ** 0.5,
+                    this.y + Math.cos(this.headBob) * 2 + r * Math.sin(this.absAngle) * 2 ** 0.5
+                );
+                ctx.lineTo(
+                    this.x + Math.sin(this.headBob) * 2 + r * Math.cos(Math.PI / 4 + this.absAngle),
+                    this.y + Math.cos(this.headBob) * 2 + r * Math.sin(Math.PI / 4 + this.absAngle)
+                );
+                ctx.strokeStyle = "rgba(200, 50, 50, 0.9)";
+                ctx.lineWidth = 5;
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = "rgba(255, 50, 50, 0.7)";
+                ctx.fillStyle = "rgba(255, 100, 100, 0.8)";
+                ctx.fill();
+                // Scales on body
+                for (let i = -2; i <= 2; i += 1) {
                     ctx.beginPath();
-                    ctx.arc(this.x, this.y, r * 0.5, 0, 2 * Math.PI);
+                    ctx.arc(this.x + i * 2, this.y + i * 2, 2, 0, 2 * Math.PI);
+                    ctx.fillStyle = "rgba(255, 150, 150, 0.6)";
                     ctx.fill();
                 }
                 ctx.stroke();
@@ -457,79 +461,68 @@
                 window.innerWidth / 2,
                 window.innerHeight / 2,
                 0,
-                s * 12,
-                s * 2.5,
-                0.4,
-                20,
-                0.6,
-                0.09,
-                0.4,
-                0.25
+                s * 15, // Faster base speed
+                s * 2,
+                0.3, // Lower resistance for quicker response
+                15,
+                0.8, // Faster rotation
+                0.08,
+                0.3,
+                0.2
             );
             var spinal = critter;
-            // Neck with detailed segments
-            for (var i = 0; i < 8; i++) {
-                spinal = new Segment(spinal, s * 3.5, 0, 3.1415 * 0.5, 1.2);
+            // Head and neck
+            spinal = new Segment(spinal, s * 4, 0, 3.1415 * 0.4, 1.1, false, true);
+            for (var i = 0; i < 6; i++) {
+                spinal = new Segment(spinal, s * 3, 0, 3.1415 * 0.5, 1.2);
                 for (var ii = -1; ii <= 1; ii += 2) {
-                    var node = new Segment(spinal, s * 2.5, ii * 0.8, 0.15, 2.5);
-                    for (var iii = 0; iii < 4; iii++) {
-                        node = new Segment(node, s * 0.2, -ii * 0.1, 0.15, 2.5);
+                    var node = new Segment(spinal, s * 2, ii * 0.7, 0.15, 2.5);
+                    for (var iii = 0; iii < 3; iii++) {
+                        node = new Segment(node, s * 0.15, -ii * 0.1, 0.15, 2.5);
                     }
                 }
             }
             // Torso and legs
             for (var i = 0; i < legs; i++) {
                 if (i > 0) {
-                    for (var ii = 0; ii < 5; ii++) {
-                        spinal = new Segment(spinal, s * 3.5, 0, 1.571, 1.4);
+                    for (var ii = 0; ii < 4; ii++) {
+                        spinal = new Segment(spinal, s * 3, 0, 1.571, 1.3);
                         for (var iii = -1; iii <= 1; iii += 2) {
-                            var node = new Segment(spinal, s * 2.5, iii * 1.571, 0.15, 1.4);
-                            for (var iv = 0; iv < 3; iv++) {
-                                node = new Segment(node, s * 2.5, -iii * 0.3, 0.15, 2);
+                            var node = new Segment(spinal, s * 2, iii * 1.571, 0.15, 1.3);
+                            for (var iv = 0; iv < 2; iv++) {
+                                node = new Segment(node, s * 2, -iii * 0.3, 0.15, 2);
                             }
                         }
                     }
                 }
                 for (var ii = -1; ii <= 1; ii += 2) {
-                    var node = new Segment(spinal, s * 10, ii * 0.785, 0.2, 8, true);
-                    node = new Segment(node, s * 14, -ii * 0.785, 6.28, 1, true);
-                    node = new Segment(node, s * 14, ii * 1.571, 3.1415, 2, true);
+                    var node = new Segment(spinal, s * 8, ii * 0.785, 0.2, 8, true);
+                    node = new Segment(node, s * 12, -ii * 0.785, 6.28, 1, true);
+                    node = new Segment(node, s * 12, ii * 1.571, 3.1415, 2, true);
                     for (var iii = 0; iii < 5; iii++) {
-                        new Segment(node, s * 3.5, (iii / 4 - 0.5) * 1.571, 0.15, 4, true);
+                        new Segment(node, s * 3, (iii / 4 - 0.5) * 1.571, 0.15, 4, true);
                     }
-                    new LegSystem(node, 3, s * 15, critter);
+                    new LegSystem(node, 3, s * 20, critter); // Faster leg speed
                 }
             }
-            // Tail with tapering
+            // Tail with pronounced tapering
             for (var i = 0; i < tail; i++) {
-                spinal = new Segment(spinal, s * (4 - (i / tail) * 2), 0, 3.1415 * 0.5, 1.2);
+                spinal = new Segment(spinal, s * (4 - (i / tail) * 2.5), 0, 3.1415 * 0.6, 1.2, false, false, true);
                 for (var ii = -1; ii <= 1; ii += 2) {
-                    var node = new Segment(spinal, s * (2.5 - (i / tail) * 1.5), ii * 0.8, 0.15, 2);
-                    for (var iii = 0; iii < 3; iii++) {
-                        node = new Segment(node, s * (2.5 - (i / tail) * 1.5) * 0.8, -ii * 0.1, 0.15, 2);
+                    var node = new Segment(spinal, s * (2 - (i / tail) * 1.5), ii * 0.7, 0.15, 2);
+                    for (var iii = 0; iii < 2; iii++) {
+                        node = new Segment(node, s * (2 - (i / tail) * 1.5) * 0.7, -ii * 0.1, 0.15, 2);
                     }
                 }
             }
             setInterval(function() {
                 ctx.clearRect(0, 0, canvas.width, canvas.height);
                 critter.follow(Input.mouse.x, Input.mouse.y);
-            }, 25); // Increased frame rate for smoother animation
+            }, 20); // Higher frame rate for fluid motion
         }
 
-        function toggleRealistic() {
-            realisticMode = !realisticMode;
-        }
-
-        function toggleSpeed() {
-            speedBoost = !speedBoost;
-            critter.fAccel = critter.fAccel * (speedBoost ? 1.5 : 1 / 1.5);
-            critter.systems.forEach(system => {
-                system.speed = system.speed * (speedBoost ? 1.5 : 1 / 1.5);
-            });
-        }
-
-        var legNum = Math.floor(3 + Math.random() * 6); // 3-8 legs for variation
-        setupLizard(8 / Math.sqrt(legNum), legNum, Math.floor(6 + Math.random() * legNum * 6));
+        var legNum = Math.floor(3 + Math.random() * 4); // 3-6 legs for realism
+        setupLizard(10 / Math.sqrt(legNum), legNum, Math.floor(8 + Math.random() * legNum * 4));
     </script>
 </body>
 </html>
