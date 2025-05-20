@@ -10,7 +10,7 @@
             overflow: hidden;
             font-family: 'Arial', sans-serif;
             color: #fff;
-            background: linear-gradient(to bottom, #1a1a1a, #3c2f2f); /* Desert-like background */
+            background: linear-gradient(to bottom, #2b1d0e, #5c4033); /* Desert ground */
         }
         canvas {
             position: fixed;
@@ -22,7 +22,7 @@
             position: fixed;
             top: 0;
             width: 100%;
-            background: rgba(255, 255, 255, 0.05); /* More transparent */
+            background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             padding: 1rem;
             text-align: center;
@@ -40,7 +40,7 @@
             margin: 100px auto 150px;
             max-width: 800px;
             padding: 2rem;
-            background: rgba(255, 255, 255, 0.05); /* More transparent */
+            background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             border-radius: 15px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
@@ -65,7 +65,7 @@
             position: fixed;
             bottom: 0;
             width: 100%;
-            background: rgba(255, 255, 255, 0.05); /* More transparent */
+            background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(10px);
             padding: 1rem;
             text-align: center;
@@ -89,7 +89,7 @@
             flex-direction: column;
             gap: 10px;
         }
-        .controls button, .controls input {
+        .controls button, .controls input, .controls select {
             padding: 10px;
             font-size: 1rem;
             border: none;
@@ -99,7 +99,7 @@
             cursor: pointer;
             transition: background 0.3s;
         }
-        .controls button:hover, .controls input:hover {
+        .controls button:hover, .controls input:hover, .controls select:hover {
             background: rgba(255, 77, 77, 0.3);
         }
     </style>
@@ -110,21 +110,25 @@
     </header>
     <div class="controls">
         <button onclick="toggleMode()">Toggle Realistic Mode</button>
-        <input type="range" id="speedSlider" min="5" max="20" value="12" oninput="updateSpeed(this.value)">
+        <input type="range" id="speedSlider" min="3" max="15" value="8" oninput="updateSpeed(this.value)">
+        <select id="colorSelect" onchange="updateColor(this.value)">
+            <option value="red">Red 🦎</option>
+            <option value="green">Green 🦎</option>
+            <option value="blue">Blue 🦎</option>
+        </select>
     </div>
     <main>
         <h2>Explore the World of Cars 🚘</h2>
         <p>
-            Discover the thrill of automotive engineering with our curated selection of high-performance cars! 
-            From sleek sports cars to rugged SUVs, each vehicle is a masterpiece of design and technology. 
-            Watch as our unique lizard cursor 🦎 follows your mouse, bringing a dynamic and interactive experience 
-            to your journey through the world of automobiles. 
+            Dive into the exhilarating world of automotive excellence! From lightning-fast sports cars to robust SUVs, 
+            our showcase celebrates the fusion of design and performance. Watch our lifelike lizard cursor 🦎 scuttle 
+            across the screen, following your mouse with natural precision, blending nature with technology. 
             <span class="emoji">🔥</span>
         </p>
         <p>
-            Whether you're a fan of electric speedsters ⚡️ or classic combustion engines, our showcase has something 
-            for every car enthusiast. Enjoy the transparent glass effect as you explore, with the lizard's 
-            movements visible in the background, adding a touch of nature to cutting-edge technology. 
+            Whether you dream of electric vehicles ⚡️ zipping through the future or the roar of classic engines, 
+            there's something here for every car enthusiast. The transparent glass effect lets you see the lizard's 
+            intricate movements, creating a dynamic and immersive experience. 
             <span class="emoji">🌟</span>
         </p>
     </main>
@@ -171,7 +175,7 @@
 
         var segmentCount = 0;
         class Segment {
-            constructor(parent, size, angle, range, stiffness) {
+            constructor(parent, size, angle, range, stiffness, mass = 1) {
                 segmentCount++;
                 this.isSegment = true;
                 this.parent = parent;
@@ -185,6 +189,9 @@
                 this.absAngle = parent.absAngle + angle;
                 this.range = range;
                 this.stiffness = stiffness;
+                this.mass = mass; // Added for weight simulation
+                this.velocityX = 0;
+                this.velocityY = 0;
                 this.updateRelative(false, true);
             }
             updateRelative(iter, flex) {
@@ -199,24 +206,37 @@
                     );
                 }
                 this.absAngle = this.parent.absAngle + this.relAngle;
-                this.x = this.parent.x + Math.cos(this.absAngle) * this.size;
-                this.y = this.parent.y + Math.sin(this.absAngle) * this.size;
+                let targetX = this.parent.x + Math.cos(this.absAngle) * this.size;
+                let targetY = this.parent.y + Math.sin(this.absAngle) * this.size;
+                // Apply inertia and damping
+                let dx = targetX - this.x;
+                let dy = targetY - this.y;
+                let ax = dx / this.mass;
+                let ay = dy / this.mass;
+                this.velocityX = (this.velocityX + ax) * 0.9; // Damping
+                this.velocityY = (this.velocityY + ay) * 0.9;
+                this.x += this.velocityX;
+                this.y += this.velocityY;
                 if (iter) {
                     this.children.forEach(child => child.updateRelative(iter, flex));
                 }
             }
-            draw(iter) {
+            draw(iter, isRealistic) {
                 ctx.beginPath();
                 ctx.moveTo(this.parent.x, this.parent.y);
                 ctx.lineTo(this.x, this.y);
+                if (isRealistic) {
+                    ctx.strokeStyle = this.strokeColor || "red";
+                    ctx.lineWidth = this.size * 0.2; // Thicker for main segments
+                }
                 ctx.stroke();
                 if (iter) {
-                    this.children.forEach(child => child.draw(true));
+                    this.children.forEach(child => child.draw(true, isRealistic));
                 }
             }
             follow(iter) {
-                var x = this.parent.x, y = this.parent.y;
-                var dist = Math.hypot(this.x - x, this.y - y);
+                let x = this.parent.x, y = this.parent.y;
+                let dist = Math.hypot(this.x - x, this.y - y);
                 this.x = x + this.size * (this.x - x) / dist;
                 this.y = y + this.size * (this.y - y) / dist;
                 this.absAngle = Math.atan2(this.y - y, this.x - x);
@@ -236,8 +256,8 @@
                 this.speed = speed;
                 creature.systems.push(this);
                 this.nodes = [];
-                var node = end;
-                for (var i = 0; i < length; i++) {
+                let node = end;
+                for (let i = 0; i < length; i++) {
                     this.nodes.unshift(node);
                     node = node.parent;
                     if (!node.isSegment) {
@@ -249,11 +269,11 @@
             }
             moveTo(x, y) {
                 this.nodes[0].updateRelative(true, true);
-                var dist = Math.hypot(x - this.end.x, y - this.end.y);
-                var len = Math.max(0, dist - this.speed);
-                for (var i = this.nodes.length - 1; i >= 0; i--) {
-                    var node = this.nodes[i];
-                    var ang = Math.atan2(node.y - y, node.x - x);
+                let dist = Math.hypot(x - this.end.x, y - this.end.y);
+                let len = Math.max(0, dist - this.speed);
+                for (let i = this.nodes.length - 1; i >= 0; i--) {
+                    let node = this.nodes[i];
+                    let ang = Math.atan2(node.y - y, node.x - x);
                     node.x = x + len * Math.cos(ang);
                     node.y = y + len * Math.sin(ang);
                     x = node.x;
@@ -283,7 +303,7 @@
                 this.step = 0;
                 this.forwardness = 0;
                 this.reach = 0.9 * Math.hypot(this.end.x - this.hip.x, this.end.y - this.hip.y);
-                var relAngle = this.creature.absAngle - Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x);
+                let relAngle = this.creature.absAngle - Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x);
                 relAngle -= 2 * Math.PI * Math.floor(relAngle / (2 * Math.PI) + 0.5);
                 this.swing = -relAngle + (2 * (relAngle < 0) - 1) * Math.PI / 2;
                 this.swingOffset = this.creature.absAngle - this.hip.absAngle;
@@ -291,19 +311,19 @@
             update(x, y) {
                 this.moveTo(this.goalX, this.goalY);
                 if (this.step === 0) {
-                    var dist = Math.hypot(this.end.x - this.goalX, this.end.y - this.goalY);
-                    if (dist > 10) {
+                    let dist = Math.hypot(this.end.x - this.goalX, this.end.y - this.goalY);
+                    if (dist > 15) {
                         this.step = 1;
                         this.goalX = this.hip.x + this.reach * Math.cos(this.swing + this.hip.absAngle + this.swingOffset);
                         this.goalY = this.hip.y + this.reach * Math.sin(this.swing + this.hip.absAngle + this.swingOffset);
                     }
                 } else if (this.step === 1) {
-                    var theta = Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x) - this.hip.absAngle;
-                    var dist = Math.hypot(this.end.x - this.hip.x, this.end.y - this.hip.y);
-                    var forwardness2 = dist * Math.cos(theta);
-                    var dF = this.forwardness - forwardness2;
+                    let theta = Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x) - this.hip.absAngle;
+                    let dist = Math.hypot(this.end.x - this.hip.x, this.end.y - this.hip.y);
+                    let forwardness2 = dist * Math.cos(theta);
+                    let dF = this.forwardness - forwardness2;
                     this.forwardness = forwardness2;
-                    if (dF * dF < 1) {
+                    if (dF * dF < 2) {
                         this.step = 0;
                         this.goalX = this.hip.x + (this.end.x - this.hip.x);
                         this.goalY = this.hip.y + (this.end.y - this.hip.y);
@@ -329,15 +349,22 @@
                 this.rThresh = rThresh;
                 this.children = [];
                 this.systems = [];
+                this.mass = 2; // Added for weight simulation
+                this.velocityX = 0;
+                this.velocityY = 0;
+                this.eyeBlink = 0; // For blinking animation
             }
             follow(x, y) {
-                var dist = Math.hypot(this.x - x, this.y - y);
-                var angle = Math.atan2(y - this.y, x - this.x);
-                var accel = this.fAccel * (this.systems.length ? this.systems.reduce((sum, s) => sum + (s.step === 0), 0) / this.systems.length : 1);
-                this.fSpeed += accel * (dist > this.fThresh);
-                this.fSpeed *= 1 - this.fRes;
-                this.speed = Math.max(0, this.fSpeed - this.fFric);
-                var dif = this.absAngle - angle;
+                let dist = Math.hypot(this.x - x, this.y - y);
+                let angle = Math.atan2(y - this.y, x - this.x);
+                let accel = this.fAccel * (this.systems.length ? this.systems.reduce((sum, s) => sum + (s.step === 0), 0) / this.systems.length : 1);
+                let ax = accel * Math.cos(angle) * (dist > this.fThresh);
+                let ay = accel * Math.sin(angle) * (dist > this.fThresh);
+                this.velocityX = (this.velocityX + ax) * 0.95; // Damping
+                this.velocityY = (this.velocityY + ay) * 0.95;
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                let dif = this.absAngle - angle;
                 dif -= 2 * Math.PI * Math.floor(dif / (2 * Math.PI) + 0.5);
                 if (Math.abs(dif) > this.rThresh && dist > this.fThresh) {
                     this.rSpeed -= this.rAccel * (2 * (dif > 0) - 1);
@@ -346,65 +373,84 @@
                 this.rSpeed = Math.abs(this.rSpeed) > this.rFric ? this.rSpeed - this.rFric * (2 * (this.rSpeed > 0) - 1) : 0;
                 this.absAngle += this.rSpeed;
                 this.absAngle -= 2 * Math.PI * Math.floor(this.absAngle / (2 * Math.PI) + 0.5);
-                this.x += this.speed * Math.cos(this.absAngle);
-                this.y += this.speed * Math.sin(this.absAngle);
                 this.absAngle += Math.PI;
                 this.children.forEach(child => child.follow(true));
                 this.systems.forEach(system => system.update(x, y));
                 this.absAngle -= Math.PI;
+                this.eyeBlink += 0.05;
                 this.draw(true);
             }
-            draw(iter) {
-                var r = 8; // Larger head for realism
+            draw(iter, isRealistic) {
+                let r = 10; // Larger head
                 ctx.save();
-                ctx.fillStyle = "rgba(255, 77, 77, 0.3)"; // Scale texture
+                // Shadow
+                ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
                 ctx.beginPath();
-                ctx.ellipse(this.x, this.y, r * 1.5, r, this.absAngle, 0, 2 * Math.PI);
+                ctx.ellipse(this.x, this.y + 15, r * 2, r * 0.8, this.absAngle, 0, 2 * Math.PI);
                 ctx.fill();
-                // Draw eyes
-                ctx.fillStyle = "yellow";
+                // Body
+                if (isRealistic) {
+                    let gradient = ctx.createRadialGradient(this.x, this.y, r * 0.5, this.x, this.y, r * 2);
+                    gradient.addColorStop(0, "rgba(255, 77, 77, 0.5)");
+                    gradient.addColorStop(1, "rgba(255, 77, 77, 0.2)");
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.ellipse(this.x, this.y, r * 2, r * 1.2, this.absAngle, 0, 2 * Math.PI);
+                    ctx.fill();
+                    // Eyes with blink
+                    ctx.fillStyle = Math.sin(this.eyeBlink) > 0.9 ? "black" : "yellow";
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.x + r * 1.2 * Math.cos(this.absAngle + Math.PI / 4),
+                        this.y + r * 1.2 * Math.sin(this.absAngle + Math.PI / 4),
+                        r * 0.3,
+                        0,
+                        2 * Math.PI
+                    );
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(
+                        this.x + r * 1.2 * Math.cos(this.absAngle - Math.PI / 4),
+                        this.y + r * 1.2 * Math.sin(this.absAngle - Math.PI / 4),
+                        r * 0.3,
+                        0,
+                        2 * Math.PI
+                    );
+                    ctx.fill();
+                }
+                // Outline
+                ctx.strokeStyle = this.strokeColor || "red";
+                ctx.lineWidth = 2;
                 ctx.beginPath();
-                ctx.arc(
-                    this.x + r * 0.7 * Math.cos(this.absAngle + Math.PI / 4),
-                    this.y + r * 0.7 * Math.sin(this.absAngle + Math.PI / 4),
-                    r * 0.2,
-                    0,
-                    2 * Math.PI
-                );
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(
-                    this.x + r * 0.7 * Math.cos(this.absAngle - Math.PI / 4),
-                    this.y + r * 0.7 * Math.sin(this.absAngle - Math.PI / 4),
-                    r * 0.2,
-                    0,
-                    2 * Math.PI
-                );
-                ctx.fill();
-                // Draw body outline
-                ctx.strokeStyle = "red";
-                ctx.beginPath();
-                ctx.ellipse(this.x, this.y, r * 1.5, r, this.absAngle, Math.PI / 4, 7 * Math.PI / 4);
+                ctx.ellipse(this.x, this.y, r * 2, r * 1.2, this.absAngle, Math.PI / 4, 7 * Math.PI / 4);
                 ctx.stroke();
                 ctx.restore();
                 if (iter) {
-                    this.children.forEach(child => child.draw(true));
+                    this.children.forEach(child => child.draw(true, isRealistic));
                 }
             }
         }
 
         let isRealistic = true;
         let critter;
-        let movementSpeed = 12;
+        let movementSpeed = 8; // Reduced default speed
+        let strokeColor = "red";
 
         function updateSpeed(value) {
             movementSpeed = parseInt(value);
-            setupLizard(isRealistic ? 6 / Math.sqrt(legNum) : 8 / Math.sqrt(legNum), legNum, isRealistic ? 8 : Math.floor(4 + Math.random() * legNum * 8));
+            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12); // Fixed 4 legs
+        }
+
+        function updateColor(value) {
+            strokeColor = value;
+            critter.strokeColor = value;
+            critter.children.forEach(child => child.strokeColor = value);
+            critter.systems.forEach(system => system.nodes.forEach(node => node.strokeColor = value));
         }
 
         function toggleMode() {
             isRealistic = !isRealistic;
-            setupLizard(isRealistic ? 6 / Math.sqrt(legNum) : 8 / Math.sqrt(legNum), legNum, isRealistic ? 8 : Math.floor(4 + Math.random() * legNum * 8));
+            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12); // Fixed 4 legs
         }
 
         function setupLizard(size, legs, tail) {
@@ -414,57 +460,71 @@
                 window.innerHeight / 2,
                 0,
                 movementSpeed,
-                size * 2,
-                0.3, // Reduced resistance for smoother movement
-                10, // Lower threshold for faster response
-                0.3, // Reduced rotation acceleration
-                0.05, // Lower friction for smoother rotation
-                0.3,
-                0.2 // Lower rotation threshold
+                size * 1.5,
+                0.2, // Lower resistance
+                8, // Lower threshold
+                0.2, // Lower rotation accel
+                0.03, // Lower friction
+                0.2,
+                0.15 // Lower rotation threshold
             );
-            var spinal = critter;
-            // Reduced segments for neck
-            for (var i = 0; i < 3; i++) {
-                spinal = new Segment(spinal, size * 3, 0, 1.571, 1.2);
+            critter.strokeColor = strokeColor;
+            let spinal = critter;
+            // Head and neck (3 segments)
+            for (let i = 0; i < 3; i++) {
+                spinal = new Segment(spinal, size * 4, 0, 1.0, 1.2, 0.8);
+                spinal.strokeColor = strokeColor;
                 if (isRealistic) {
-                    for (var ii = -1; ii <= 1; ii += 2) {
-                        var node = new Segment(spinal, size * 2, ii * 0.5, 0.05, 2);
-                        new Segment(node, size * 0.1, -ii * 0.05, 0.05, 2);
+                    for (let ii = -1; ii <= 1; ii += 2) {
+                        let node = new Segment(spinal, size * 2, ii * 0.4, 0.05, 2, 0.5);
+                        node.strokeColor = strokeColor;
+                        let scale = new Segment(node, size * 1.5, -ii * 0.05, 0.05, 2, 0.3);
+                        scale.strokeColor = strokeColor;
                     }
                 }
             }
-            // Reduced segments for torso and legs
-            for (var i = 0; i < legs; i++) {
-                if (i > 0) {
-                    for (var ii = 0; ii < 3; ii++) {
-                        spinal = new Segment(spinal, size * 3, 0, 1.0, 1.5);
-                        if (isRealistic) {
-                            for (var iii = -1; iii <= 1; iii += 2) {
-                                var node = new Segment(spinal, size * 2, iii * 1.0, 0.05, 1.5);
-                                new Segment(node, size * 2, -iii * 0.2, 0.05, 2);
-                            }
+            // Torso with 2 leg pairs (4 legs total)
+            for (let i = 0; i < 2; i++) {
+                for (let ii = 0; ii < 4; ii++) {
+                    spinal = new Segment(spinal, size * 4, 0, 0.8, 1.3, 1);
+                    spinal.strokeColor = strokeColor;
+                    if (isRealistic && i < 1) {
+                        for (let iii = -1; iii <= 1; iii += 2) {
+                            let node = new Segment(spinal, size * 2.5, iii * 0.8, 0.05, 1.5, 0.5);
+                            node.strokeColor = strokeColor;
+                            let scale = new Segment(node, size * 2, -iii * 0.1, 0.05, 2, 0.3);
+                            scale.strokeColor = strokeColor;
                         }
                     }
                 }
-                for (var ii = -1; ii <= 1; ii += 2) {
-                    var node = new Segment(spinal, size * 10, ii * 0.5, 0, 6);
-                    node = new Segment(node, size * 12, -ii * 0.5, 3.1415, 1);
-                    node = new Segment(node, size * 12, ii * 1.0, 1.571, 1.5);
+                // Two legs per side per segment
+                for (let ii = -1; ii <= 1; ii += 2) {
+                    let hip = new Segment(spinal, size * 8, ii * 0.4, 0, 5, 1.2);
+                    hip.strokeColor = strokeColor;
+                    let thigh = new Segment(hip, size * 10, -ii * 0.4, 2.0, 1, 1);
+                    thigh.strokeColor = strokeColor;
+                    let shin = new Segment(thigh, size * 10, ii * 0.8, 1.5, 1.2, 0.8);
+                    shin.strokeColor = strokeColor;
                     if (isRealistic) {
-                        for (var iii = 0; iii < 2; iii++) {
-                            new Segment(node, size * 3, (iii - 0.5) * 1.0, 0.05, 3);
+                        for (let iii = 0; iii < 3; iii++) {
+                            let claw = new Segment(shin, size * 2, (iii / 2 - 0.5) * 0.8, 0.05, 3, 0.2);
+                            claw.strokeColor = strokeColor;
                         }
                     }
-                    new LegSystem(node, 3, size * 10, critter);
+                    new LegSystem(shin, 3, size * 8, critter);
                 }
             }
-            // Reduced tail segments
-            for (var i = 0; i < tail; i++) {
-                spinal = new Segment(spinal, size * 3, 0, 1.571, 1.2);
+            // Tail (tapered)
+            for (let i = 0; i < tail; i++) {
+                let tailSize = size * 4 * (1 - i / tail); // Tapered size
+                spinal = new Segment(spinal, tailSize, 0, 1.0, 1.3, 0.7);
+                spinal.strokeColor = strokeColor;
                 if (isRealistic) {
-                    for (var ii = -1; ii <= 1; ii += 2) {
-                        var node = new Segment(spinal, size * 2 * (tail - i) / tail, ii * 0.5, 0.05, 2);
-                        new Segment(node, size * 2 * (tail - i) / tail, -ii * 0.05, 0.05, 2);
+                    for (let ii = -1; ii <= 1; ii += 2) {
+                        let node = new Segment(spinal, tailSize * 0.5, ii * 0.3, 0.05, 2, 0.3);
+                        node.strokeColor = strokeColor;
+                        let scale = new Segment(node, tailSize * 0.3, -ii * 0.05, 0.05, 2, 0.2);
+                        scale.strokeColor = strokeColor;
                     }
                 }
             }
@@ -472,23 +532,19 @@
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Draw shadow
+            // Ground texture
             ctx.save();
-            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
-            ctx.beginPath();
-            ctx.ellipse(critter.x, critter.y + 10, 12, 6, critter.absAngle, 0, 2 * Math.PI);
-            ctx.fill();
+            ctx.fillStyle = "rgba(139, 69, 19, 0.1)";
+            ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
             ctx.restore();
             critter.follow(Input.mouse.x, Input.mouse.y);
             requestAnimationFrame(animate);
         }
 
-        ctx.strokeStyle = "red";
         ctx.lineWidth = 2;
-
-        var legNum = Math.floor(1 + Math.random() * 6); // Reduced max legs to 6
-        setupLizard(6 / Math.sqrt(legNum), legNum, 8);
-        requestAnimationFrame(animate);
+        setupLizard(5, 4, 10); // 4 legs, 10 tail segments
+        document.getElementById("colorSelect").value = "red";
+        animate();
     </script>
 </body>
 </html>
