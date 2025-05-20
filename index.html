@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>🚗 Reptile Cursor Garage 🚀</title>
   <style>
     body {
@@ -11,24 +11,57 @@
       background-color: #1a1a1a; /* Dark background for contrast */
       color: white;
       font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
     }
     canvas {
       position: absolute;
       top: 0;
       left: 0;
       z-index: 1; /* Canvas in the background */
-      background: transparent; /* Make canvas transparent */
+      background: transparent; /* Transparent canvas */
     }
     .content {
       position: relative;
       z-index: 10; /* Content above canvas */
       text-align: center;
       padding: 20px;
+      max-width: 600px;
+    }
+    h1 {
+      font-size: 2.5em;
+      margin-bottom: 10px;
+    }
+    h2 {
+      font-size: 1.8em;
+      margin-bottom: 10px;
+    }
+    p {
+      font-size: 1.2em;
+      margin-bottom: 15px;
+    }
+    footer {
+      font-size: 0.9em;
+      margin-top: 20px;
+    }
+    @media (max-width: 600px) {
+      h1 {
+        font-size: 1.8em;
+      }
+      h2 {
+        font-size: 1.4em;
+      }
+      p {
+        font-size: 1em;
+      }
     }
   </style>
 </head>
 <body>
-  <canvas id="reptileCanvas"></canvas> <!-- Add canvas element -->
+  <canvas id="reptileCanvas"></canvas>
   <div class="content">
     <h1>🚗 Reptile Cursor Garage 🚀</h1>
     <h2>🔥 Featured Car: Tesla Model X 🔋</h2>
