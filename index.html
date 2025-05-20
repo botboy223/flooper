@@ -110,7 +110,7 @@
     </header>
     <div class="controls">
         <button onclick="toggleMode()">Toggle Realistic Mode</button>
-        <input type="range" id="speedSlider" min="3" max="15" value="8" oninput="updateSpeed(this.value)">
+        <input type="range" id="speedSlider" min="3" max="12" value="6" oninput="updateSpeed(this.value)">
         <select id="colorSelect" onchange="updateColor(this.value)">
             <option value="red">Red 🦎</option>
             <option value="green">Green 🦎</option>
@@ -179,20 +179,22 @@
                 segmentCount++;
                 this.isSegment = true;
                 this.parent = parent;
+                this.children = [];
                 if (Array.isArray(parent.children)) {
                     parent.children.push(this);
                 }
-                this.children = [];
                 this.size = size;
                 this.relAngle = angle;
                 this.defAngle = angle;
                 this.absAngle = parent.absAngle + angle;
                 this.range = range;
                 this.stiffness = stiffness;
-                this.mass = mass; // Added for weight simulation
+                this.mass = mass;
                 this.velocityX = 0;
                 this.velocityY = 0;
-                this.updateRelative(false, true);
+                this.x = parent.x + Math.cos(this.absAngle) * size;
+                this.y = parent.y + Math.sin(this.absAngle) * size;
+                this.strokeColor = parent.strokeColor || "red";
             }
             updateRelative(iter, flex) {
                 this.relAngle -= 2 * Math.PI * Math.floor((this.relAngle - this.defAngle) / (2 * Math.PI) + 0.5);
@@ -208,12 +210,11 @@
                 this.absAngle = this.parent.absAngle + this.relAngle;
                 let targetX = this.parent.x + Math.cos(this.absAngle) * this.size;
                 let targetY = this.parent.y + Math.sin(this.absAngle) * this.size;
-                // Apply inertia and damping
                 let dx = targetX - this.x;
                 let dy = targetY - this.y;
                 let ax = dx / this.mass;
                 let ay = dy / this.mass;
-                this.velocityX = (this.velocityX + ax) * 0.9; // Damping
+                this.velocityX = (this.velocityX + ax) * 0.9;
                 this.velocityY = (this.velocityY + ay) * 0.9;
                 this.x += this.velocityX;
                 this.y += this.velocityY;
@@ -222,21 +223,21 @@
                 }
             }
             draw(iter, isRealistic) {
+                ctx.save();
+                ctx.strokeStyle = this.strokeColor;
+                ctx.lineWidth = isRealistic ? this.size * 0.2 : 2;
                 ctx.beginPath();
                 ctx.moveTo(this.parent.x, this.parent.y);
                 ctx.lineTo(this.x, this.y);
-                if (isRealistic) {
-                    ctx.strokeStyle = this.strokeColor || "red";
-                    ctx.lineWidth = this.size * 0.2; // Thicker for main segments
-                }
                 ctx.stroke();
+                ctx.restore();
                 if (iter) {
                     this.children.forEach(child => child.draw(true, isRealistic));
                 }
             }
             follow(iter) {
                 let x = this.parent.x, y = this.parent.y;
-                let dist = Math.hypot(this.x - x, this.y - y);
+                let dist = Math.hypot(this.x - x, this.y - y) || 0.0001; // Prevent division by zero
                 this.x = x + this.size * (this.x - x) / dist;
                 this.y = y + this.size * (this.y - y) / dist;
                 this.absAngle = Math.atan2(this.y - y, this.x - x);
@@ -349,10 +350,11 @@
                 this.rThresh = rThresh;
                 this.children = [];
                 this.systems = [];
-                this.mass = 2; // Added for weight simulation
+                this.mass = 2;
                 this.velocityX = 0;
                 this.velocityY = 0;
-                this.eyeBlink = 0; // For blinking animation
+                this.eyeBlink = 0;
+                this.strokeColor = "red";
             }
             follow(x, y) {
                 let dist = Math.hypot(this.x - x, this.y - y);
@@ -360,7 +362,7 @@
                 let accel = this.fAccel * (this.systems.length ? this.systems.reduce((sum, s) => sum + (s.step === 0), 0) / this.systems.length : 1);
                 let ax = accel * Math.cos(angle) * (dist > this.fThresh);
                 let ay = accel * Math.sin(angle) * (dist > this.fThresh);
-                this.velocityX = (this.velocityX + ax) * 0.95; // Damping
+                this.velocityX = (this.velocityX + ax) * 0.95;
                 this.velocityY = (this.velocityY + ay) * 0.95;
                 this.x += this.velocityX;
                 this.y += this.velocityY;
@@ -373,15 +375,13 @@
                 this.rSpeed = Math.abs(this.rSpeed) > this.rFric ? this.rSpeed - this.rFric * (2 * (this.rSpeed > 0) - 1) : 0;
                 this.absAngle += this.rSpeed;
                 this.absAngle -= 2 * Math.PI * Math.floor(this.absAngle / (2 * Math.PI) + 0.5);
-                this.absAngle += Math.PI;
                 this.children.forEach(child => child.follow(true));
                 this.systems.forEach(system => system.update(x, y));
-                this.absAngle -= Math.PI;
                 this.eyeBlink += 0.05;
                 this.draw(true);
             }
             draw(iter, isRealistic) {
-                let r = 10; // Larger head
+                let r = 10;
                 ctx.save();
                 // Shadow
                 ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
@@ -391,8 +391,8 @@
                 // Body
                 if (isRealistic) {
                     let gradient = ctx.createRadialGradient(this.x, this.y, r * 0.5, this.x, this.y, r * 2);
-                    gradient.addColorStop(0, "rgba(255, 77, 77, 0.5)");
-                    gradient.addColorStop(1, "rgba(255, 77, 77, 0.2)");
+                    gradient.addColorStop(0, `rgba(${this.strokeColor === "red" ? "255, 77, 77" : this.strokeColor === "green" ? "50, 205, 50" : "70, 130, 180"}, 0.5)`);
+                    gradient.addColorStop(1, `rgba(${this.strokeColor === "red" ? "255, 77, 77" : this.strokeColor === "green" ? "50, 205, 50" : "70, 130, 180"}, 0.2)`);
                     ctx.fillStyle = gradient;
                     ctx.beginPath();
                     ctx.ellipse(this.x, this.y, r * 2, r * 1.2, this.absAngle, 0, 2 * Math.PI);
@@ -419,7 +419,7 @@
                     ctx.fill();
                 }
                 // Outline
-                ctx.strokeStyle = this.strokeColor || "red";
+                ctx.strokeStyle = this.strokeColor;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.ellipse(this.x, this.y, r * 2, r * 1.2, this.absAngle, Math.PI / 4, 7 * Math.PI / 4);
@@ -433,24 +433,30 @@
 
         let isRealistic = true;
         let critter;
-        let movementSpeed = 8; // Reduced default speed
+        let movementSpeed = 6; // Reduced speed
         let strokeColor = "red";
 
         function updateSpeed(value) {
             movementSpeed = parseInt(value);
-            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12); // Fixed 4 legs
+            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12);
         }
 
         function updateColor(value) {
             strokeColor = value;
             critter.strokeColor = value;
-            critter.children.forEach(child => child.strokeColor = value);
-            critter.systems.forEach(system => system.nodes.forEach(node => node.strokeColor = value));
+            critter.children.forEach(child => {
+                child.strokeColor = value;
+                child.children.forEach(subChild => subChild.strokeColor = value);
+            });
+            critter.systems.forEach(system => system.nodes.forEach(node => {
+                node.strokeColor = value;
+                node.children.forEach(subChild => subChild.strokeColor = value);
+            }));
         }
 
         function toggleMode() {
             isRealistic = !isRealistic;
-            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12); // Fixed 4 legs
+            setupLizard(isRealistic ? 5 : 6, 4, isRealistic ? 10 : 12);
         }
 
         function setupLizard(size, legs, tail) {
@@ -461,16 +467,16 @@
                 0,
                 movementSpeed,
                 size * 1.5,
-                0.2, // Lower resistance
-                8, // Lower threshold
-                0.2, // Lower rotation accel
-                0.03, // Lower friction
                 0.2,
-                0.15 // Lower rotation threshold
+                8,
+                0.2,
+                0.03,
+                0.2,
+                0.15
             );
             critter.strokeColor = strokeColor;
             let spinal = critter;
-            // Head and neck (3 segments)
+            // Neck (3 segments)
             for (let i = 0; i < 3; i++) {
                 spinal = new Segment(spinal, size * 4, 0, 1.0, 1.2, 0.8);
                 spinal.strokeColor = strokeColor;
@@ -488,7 +494,7 @@
                 for (let ii = 0; ii < 4; ii++) {
                     spinal = new Segment(spinal, size * 4, 0, 0.8, 1.3, 1);
                     spinal.strokeColor = strokeColor;
-                    if (isRealistic && i < 1) {
+                    if (isRealistic) {
                         for (let iii = -1; iii <= 1; iii += 2) {
                             let node = new Segment(spinal, size * 2.5, iii * 0.8, 0.05, 1.5, 0.5);
                             node.strokeColor = strokeColor;
@@ -497,7 +503,6 @@
                         }
                     }
                 }
-                // Two legs per side per segment
                 for (let ii = -1; ii <= 1; ii += 2) {
                     let hip = new Segment(spinal, size * 8, ii * 0.4, 0, 5, 1.2);
                     hip.strokeColor = strokeColor;
@@ -516,7 +521,7 @@
             }
             // Tail (tapered)
             for (let i = 0; i < tail; i++) {
-                let tailSize = size * 4 * (1 - i / tail); // Tapered size
+                let tailSize = size * 4 * (1 - i / tail);
                 spinal = new Segment(spinal, tailSize, 0, 1.0, 1.3, 0.7);
                 spinal.strokeColor = strokeColor;
                 if (isRealistic) {
@@ -532,7 +537,6 @@
 
         function animate() {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            // Ground texture
             ctx.save();
             ctx.fillStyle = "rgba(139, 69, 19, 0.1)";
             ctx.fillRect(0, canvas.height * 0.8, canvas.width, canvas.height * 0.2);
@@ -542,7 +546,7 @@
         }
 
         ctx.lineWidth = 2;
-        setupLizard(5, 4, 10); // 4 legs, 10 tail segments
+        setupLizard(5, 4, 10);
         document.getElementById("colorSelect").value = "red";
         animate();
     </script>
