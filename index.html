@@ -110,7 +110,7 @@
     </header>
     <div class="controls">
         <button onclick="toggleMode()">Toggle Realistic Mode</button>
-        <input type="range" id="speedSlider" min="3" max="12" value="6" oninput="updateSpeed(this.value)">
+        <input type="range" id="speedSlider" min="2" max="10" value="6" oninput="updateSpeed(this.value)">
         <select id="colorSelect" onchange="updateColor(this.value)">
             <option value="red">Red 🦎</option>
             <option value="green">Green 🦎</option>
@@ -175,7 +175,7 @@
 
         var segmentCount = 0;
         class Segment {
-            constructor(parent, size, angle, range, stiffness, mass = 1) {
+            constructor(parent, size, angle, range, stiffness, mass = 1, isTail = false) {
                 segmentCount++;
                 this.isSegment = true;
                 this.parent = parent;
@@ -190,11 +190,13 @@
                 this.range = range;
                 this.stiffness = stiffness;
                 this.mass = mass;
+                this.isTail = isTail;
                 this.velocityX = 0;
                 this.velocityY = 0;
                 this.x = parent.x + Math.cos(this.absAngle) * size;
                 this.y = parent.y + Math.sin(this.absAngle) * size;
                 this.strokeColor = parent.strokeColor || "red";
+                this.phase = Math.random() * Math.PI; // For tail oscillation
             }
             updateRelative(iter, flex) {
                 this.relAngle -= 2 * Math.PI * Math.floor((this.relAngle - this.defAngle) / (2 * Math.PI) + 0.5);
@@ -214,10 +216,13 @@
                 let dy = targetY - this.y;
                 let ax = dx / this.mass;
                 let ay = dy / this.mass;
-                this.velocityX = (this.velocityX + ax) * 0.9;
-                this.velocityY = (this.velocityY + ay) * 0.9;
+                this.velocityX = (this.velocityX + ax) * (this.isTail ? 0.85 : 0.9);
+                this.velocityY = (this.velocityY + ay) * (this.isTail ? 0.85 : 0.9);
                 this.x += this.velocityX;
                 this.y += this.velocityY;
+                if (this.isTail) {
+                    this.relAngle += 0.1 * Math.sin(performance.now() * 0.002 + this.phase);
+                }
                 if (iter) {
                     this.children.forEach(child => child.updateRelative(iter, flex));
                 }
@@ -225,7 +230,7 @@
             draw(iter, isRealistic) {
                 ctx.save();
                 ctx.strokeStyle = this.strokeColor;
-                ctx.lineWidth = isRealistic ? this.size * 0.2 : 2;
+                ctx.lineWidth = isRealistic ? this.size * (this.isTail ? 0.15 : 0.2) : 2;
                 ctx.beginPath();
                 ctx.moveTo(this.parent.x, this.parent.y);
                 ctx.lineTo(this.x, this.y);
@@ -235,26 +240,32 @@
                     this.children.forEach(child => child.draw(true, isRealistic));
                 }
             }
-            follow(iter) {
+            follow(iter, targetX, targetY) {
                 let x = this.parent.x, y = this.parent.y;
-                let dist = Math.hypot(this.x - x, this.y - y) || 0.0001; // Prevent division by zero
-                this.x = x + this.size * (this.x - x) / dist;
-                this.y = y + this.size * (this.y - y) / dist;
+                let dist = Math.hypot(this.x - x, this.y - y) || 0.0001;
+                if (this.isTail) {
+                    this.x = x + this.size * Math.cos(this.absAngle);
+                    this.y = y + this.size * Math.sin(this.absAngle);
+                } else {
+                    this.x = x + this.size * (this.x - x) / dist;
+                    this.y = y + this.size * (this.y - y) / dist;
+                }
                 this.absAngle = Math.atan2(this.y - y, this.x - x);
                 this.relAngle = this.absAngle - this.parent.absAngle;
                 this.updateRelative(false, true);
                 if (iter) {
-                    this.children.forEach(child => child.follow(true));
+                    this.children.forEach(child => child.follow(true, targetX, targetY));
                 }
             }
         }
 
         class LimbSystem {
-            constructor(end, length, speed, creature) {
+            constructor(end, length, speed, creature, side) {
                 this.end = end;
                 this.length = Math.max(1, length);
                 this.creature = creature;
-                this.speed = speed;
+                this.speed = speed * 0.8; // Legs move slower than head
+                this.side = side; // Left or right for gait
                 creature.systems.push(this);
                 this.nodes = [];
                 let node = end;
@@ -267,9 +278,10 @@
                     }
                 }
                 this.hip = this.nodes[0].parent;
+                this.phase = Math.random() * Math.PI; // For walking gait
             }
             moveTo(x, y) {
-                this.nodes[0].updateRelative(true, true);
+                this.nodes[0].update Relative(true, true);
                 let dist = Math.hypot(x - this.end.x, y - this.end.y);
                 let len = Math.max(0, dist - this.speed);
                 for (let i = this.nodes.length - 1; i >= 0; i--) {
@@ -291,32 +303,16 @@
                     });
                 });
             }
-            update() {
-                this.moveTo(Input.mouse.x, Input.mouse.y);
-            }
-        }
-
-        class LegSystem extends LimbSystem {
-            constructor(end, length, speed, creature) {
-                super(end, length, speed, creature);
-                this.goalX = end.x;
-                this.goalY = end.y;
-                this.step = 0;
-                this.forwardness = 0;
-                this.reach = 0.9 * Math.hypot(this.end.x - this.hip.x, this.end.y - this.hip.y);
-                let relAngle = this.creature.absAngle - Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x);
-                relAngle -= 2 * Math.PI * Math.floor(relAngle / (2 * Math.PI) + 0.5);
-                this.swing = -relAngle + (2 * (relAngle < 0) - 1) * Math.PI / 2;
-                this.swingOffset = this.creature.absAngle - this.hip.absAngle;
-            }
-            update(x, y) {
-                this.moveTo(this.goalX, this.goalY);
+            update(targetX, targetY) {
+                let speed = Math.hypot(this.creature.velocityX, this.creature.velocityY);
+                let gait = Math.sin(performance.now() * 0.003 + this.phase) * (this.side === "left" ? 1 : -1);
                 if (this.step === 0) {
                     let dist = Math.hypot(this.end.x - this.goalX, this.end.y - this.goalY);
-                    if (dist > 15) {
+                    if (dist > 15 || speed > 0.5) {
                         this.step = 1;
-                        this.goalX = this.hip.x + this.reach * Math.cos(this.swing + this.hip.absAngle + this.swingOffset);
-                        this.goalY = this.hip.y + this.reach * Math.sin(this.swing + this.hip.absAngle + this.swingOffset);
+                        let angle = this.creature.absAngle + (this.side === "left" ? 0.5 : -0.5) + gait * 0.3;
+                        this.goalX = this.hip.x + this.reach * Math.cos(angle);
+                        this.goalY = this.hip.y + this.reach * Math.sin(angle);
                     }
                 } else if (this.step === 1) {
                     let theta = Math.atan2(this.end.y - this.hip.y, this.end.x - this.hip.x) - this.hip.absAngle;
@@ -330,6 +326,7 @@
                         this.goalY = this.hip.y + (this.end.y - this.hip.y);
                     }
                 }
+                this.moveTo(this.goalX, this.goalY);
             }
         }
 
@@ -355,18 +352,12 @@
                 this.velocityY = 0;
                 this.eyeBlink = 0;
                 this.strokeColor = "red";
+                this.targetAngle = angle; // For smooth turning
             }
             follow(x, y) {
                 let dist = Math.hypot(this.x - x, this.y - y);
-                let angle = Math.atan2(y - this.y, x - this.x);
-                let accel = this.fAccel * (this.systems.length ? this.systems.reduce((sum, s) => sum + (s.step === 0), 0) / this.systems.length : 1);
-                let ax = accel * Math.cos(angle) * (dist > this.fThresh);
-                let ay = accel * Math.sin(angle) * (dist > this.fThresh);
-                this.velocityX = (this.velocityX + ax) * 0.95;
-                this.velocityY = (this.velocityY + ay) * 0.95;
-                this.x += this.velocityX;
-                this.y += this.velocityY;
-                let dif = this.absAngle - angle;
+                this.targetAngle = Math.atan2(y - this.y, x - this.x);
+                let dif = this.absAngle - this.targetAngle;
                 dif -= 2 * Math.PI * Math.floor(dif / (2 * Math.PI) + 0.5);
                 if (Math.abs(dif) > this.rThresh && dist > this.fThresh) {
                     this.rSpeed -= this.rAccel * (2 * (dif > 0) - 1);
@@ -375,7 +366,17 @@
                 this.rSpeed = Math.abs(this.rSpeed) > this.rFric ? this.rSpeed - this.rFric * (2 * (this.rSpeed > 0) - 1) : 0;
                 this.absAngle += this.rSpeed;
                 this.absAngle -= 2 * Math.PI * Math.floor(this.absAngle / (2 * Math.PI) + 0.5);
-                this.children.forEach(child => child.follow(true));
+                let accel = this.fAccel * (this.systems.length ? this.systems.reduce((sum, s) => sum + (s.step === 0), 0) / this.systems.length : 1);
+                let ax = accel * Math.cos(this.absAngle) * (dist > this.fThresh);
+                let ay = accel * Math.sin(this.absAngle) * (dist > this.fThresh);
+                this.velocityX = (this.velocityX + ax) * 0.95;
+                this.velocityY = (this.velocityY + ay) * 0.95;
+                this.x += this.velocityX;
+                this.y += this.velocityY;
+                this.children.forEach((child, i) => {
+                    let delay = i / this.children.length * 0.1; // Delay for body segments
+                    child.follow(true, x, y);
+                });
                 this.systems.forEach(system => system.update(x, y));
                 this.eyeBlink += 0.05;
                 this.draw(true);
@@ -433,7 +434,7 @@
 
         let isRealistic = true;
         let critter;
-        let movementSpeed = 6; // Reduced speed
+        let movementSpeed = 6;
         let strokeColor = "red";
 
         function updateSpeed(value) {
@@ -469,16 +470,16 @@
                 size * 1.5,
                 0.2,
                 8,
-                0.2,
+                0.3, // Increased rotation accel for faster head turning
                 0.03,
                 0.2,
-                0.15
+                0.1 // Lower rotation threshold
             );
             critter.strokeColor = strokeColor;
             let spinal = critter;
             // Neck (3 segments)
             for (let i = 0; i < 3; i++) {
-                spinal = new Segment(spinal, size * 4, 0, 1.0, 1.2, 0.8);
+                spinal = new Segment(spinal, size * 4, 0, 1.2, 1.1, 0.8);
                 spinal.strokeColor = strokeColor;
                 if (isRealistic) {
                     for (let ii = -1; ii <= 1; ii += 2) {
@@ -516,13 +517,13 @@
                             claw.strokeColor = strokeColor;
                         }
                     }
-                    new LegSystem(shin, 3, size * 8, critter);
+                    new LimbSystem(shin, 3, size * 8, critter, ii === -1 ? "left" : "right");
                 }
             }
             // Tail (tapered)
             for (let i = 0; i < tail; i++) {
                 let tailSize = size * 4 * (1 - i / tail);
-                spinal = new Segment(spinal, tailSize, 0, 1.0, 1.3, 0.7);
+                spinal = new Segment(spinal, tailSize, 0, 1.5, 0.8, 0.5, true);
                 spinal.strokeColor = strokeColor;
                 if (isRealistic) {
                     for (let ii = -1; ii <= 1; ii += 2) {
