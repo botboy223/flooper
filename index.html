@@ -1,16 +1,95 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reptile Interactive Cursor | @code_wars_official</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Reptile Interactive Cursor | @code_wars_official</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Orbitron', sans-serif;
+      background: #0f2027; /* fallback */
+      background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
+      color: #fff;
+      overflow: hidden;
+      height: 100vh;
+      position: relative;
+    }
+
+    header, footer {
+      text-align: center;
+      padding: 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    footer {
+      position: absolute;
+      bottom: 0;
+      width: 100%;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .content {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 75vh;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .glass-box {
+      background: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      padding: 2rem;
+      max-width: 600px;
+      animation: float 6s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+      100% { transform: translateY(0px); }
+    }
+
+    h1, h2 {
+      margin-bottom: 1rem;
+    }
+
+    .emoji {
+      font-size: 2rem;
+    }
+  </style>
 </head>
 <body>
-    <body>
-    <script  src="./script.js"></script>
-  
-  </body>
-  </html>
+  <header>
+    <h1>🚗 Reptile Cursor Garage 🚀</h1>
+  </header>
+
+  <div class="content">
+    <div class="glass-box">
+      <h2>🔥 Featured Car: Tesla Model X 🔋</h2>
+      <p>🚘 Sleek Design | ⚡ Electric Power | 🧠 AI Assisted</p>
+      <p>💡 The Tesla Model X is an all-electric SUV with falcon wing doors, fast acceleration, and advanced autopilot features. Perfect for eco-conscious tech lovers!</p>
+    </div>
+  </div>
+
+  <footer>
+    <p>Made with ❤️ by Sujit Zugare | @code_wars_official</p>
+  </footer>
+
+  <script src="./script.js"></script>
 </body>
 </html>
-  
