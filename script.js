@@ -1,18 +1,15 @@
-// Get the canvas from the HTML
 const canvas = document.getElementById("reptileCanvas");
 const ctx = canvas.getContext("2d");
 
-// Set canvas size to match window
+// Set canvas size
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
 }
 resizeCanvas();
-
-// Re-adjust canvas on window resize
 window.addEventListener("resize", resizeCanvas);
 
-// Particle class for animation (unchanged)
+// Particle class for background effect
 class Particle {
   constructor() {
     this.reset();
@@ -35,8 +32,6 @@ class Particle {
   update() {
     this.x += this.vx;
     this.y += this.vy;
-
-    // Bounce off edges
     if (this.x <= 0 || this.x >= canvas.width) this.vx *= -1;
     if (this.y <= 0 || this.y >= canvas.height) this.vy *= -1;
   }
@@ -51,82 +46,172 @@ class Particle {
   }
 }
 
-// Create and animate multiple particles
+// Create particles
 const particles = [];
 const numParticles = 60;
-
 for (let i = 0; i < numParticles; i++) {
   particles.push(new Particle());
 }
 
-function animateParticles() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  for (let particle of particles) {
-    particle.update();
-    particle.draw();
-  }
-
-  requestAnimationFrame(animateParticles);
-}
-
-animateParticles();
-
-// Input handling (unchanged)
-var Input = {
-  keys: [],
-  mouse: {
-    left: false,
-    right: false,
-    middle: false,
-    x: 0,
-    y: 0
-  }
+// Input handling
+const Input = {
+  mouse: { x: 0, y: 0 }
 };
-for (var i = 0; i < 230; i++) {
-  Input.keys.push(false);
-}
-document.addEventListener("keydown", function(event) {
-  Input.keys[event.keyCode] = true;
-});
-document.addEventListener("keyup", function(event) {
-  Input.keys[event.keyCode] = false;
-});
-document.addEventListener("mousedown", function(event) {
-  if (event.button === 0) Input.mouse.left = true;
-  if (event.button === 1) Input.mouse.middle = true;
-  if (event.button === 2) Input.mouse.right = true;
-});
-document.addEventListener("mouseup", function(event) {
-  if (event.button === 0) Input.mouse.left = false;
-  if (event.button === 1) Input.mouse.middle = false;
-  if (event.button === 2) Input.mouse.right = false;
-});
-document.addEventListener("mousemove", function(event) {
+document.addEventListener("mousemove", (event) => {
   Input.mouse.x = event.clientX;
   Input.mouse.y = event.clientY;
 });
 
-// Canvas setup (modified)
-canvas.style.position = "absolute";
-canvas.style.left = "0px";
-canvas.style.top = "0px";
-document.body.style.overflow = "hidden";
-ctx.strokeStyle = "white"; // Ensure stroke is visible
+// Segment class for lizard structure
+class Segment {
+  constructor(parent, size, angle, range, stiffness) {
+    this.parent = parent;
+    this.children = [];
+    if (Array.isArray(parent.children)) {
+      parent.children.push(this);
+    }
+    this.size = size;
+    this.relAngle = angle;
+    this.defAngle = angle;
+    this.absAngle = parent.absAngle + angle;
+    this.range = range;
+    this.stiffness = stiffness;
+    this.updateRelative(false, true);
+  }
 
-// Rest of your classes (Segment, LimbSystem, LegSystem, Creature) remain unchanged
-// ...
+  updateRelative(iter, flex) {
+    this.relAngle -= 2 * Math.PI * Math.floor((this.relAngle - this.defAngle) / (2 * Math.PI) + 0.5);
+    if (flex) {
+      this.relAngle = Math.min(
+        this.defAngle + this.range / 2,
+        Math.max(
+          this.defAngle - this.range / 2,
+          (this.relAngle - this.defAngle) / this.stiffness + this.defAngle
+        )
+      );
+    }
+    this.absAngle = this.parent.absAngle + this.relAngle;
+    this.x = this.parent.x + Math.cos(this.absAngle) * this.size;
+    this.y = this.parent.y + Math.sin(this.absAngle) * this.size;
+    if (iter) {
+      for (const child of this.children) {
+        child.updateRelative(iter, flex);
+      }
+    }
+  }
 
-// Initialize the lizard
-var critter;
-function setupLizard(size, legs, tail) {
-  var s = size;
-  critter = new Creature(
+  draw(iter) {
+    ctx.beginPath();
+    ctx.moveTo(this.parent.x, this.parent.y);
+    ctx.lineTo(this.x, this.y);
+    ctx.stroke();
+    if (iter) {
+      for (const child of this.children) {
+        child.draw(true);
+      }
+    }
+  }
+
+  follow(iter) {
+    const x = this.parent.x;
+    const y = this.parent.y;
+    const dist = Math.sqrt((this.x - x) ** 2 + (this.y - y) ** 2);
+    this.x = x + (this.size * (this.x - x)) / dist;
+    this.y = y + (this.size * (this.y - y)) / dist;
+    this.absAngle = Math.atan2(this.y - y, this.x - x);
+    this.relAngle = this.absAngle - this.parent.absAngle;
+    this.updateRelative(false, true);
+    if (iter) {
+      for (const child of this.children) {
+        child.follow(true);
+      }
+    }
+  }
+}
+
+// Creature class
+class Creature {
+  constructor(x, y, angle, fAccel, fFric, fRes, fThresh, rAccel, rFric, rRes, rThresh) {
+    this.x = x;
+    this.y = y;
+    this.absAngle = angle;
+    this.fSpeed = 0;
+    this.fAccel = fAccel;
+    this.fFric = fFric;
+    this.fRes = fRes;
+    this.fThresh = fThresh;
+    this.rSpeed = 0;
+    this.rAccel = rAccel;
+    this.rFric = rFric;
+    this.rRes = rRes;
+    this.rThresh = rThresh;
+    this.children = [];
+  }
+
+  follow(x, y) {
+    const dist = Math.sqrt((this.x - x) ** 2 + (this.y - y) ** 2);
+    let angle = Math.atan2(y - this.y, x - this.x);
+    let accel = this.fAccel;
+
+    // Update forward speed
+    this.fSpeed += accel * (dist > this.fThresh);
+    this.fSpeed *= 1 - this.fRes;
+    this.fSpeed = Math.max(0, this.fSpeed - this.fFric);
+
+    // Update rotation
+    let dif = this.absAngle - angle;
+    dif -= 2 * Math.PI * Math.floor(dif / (2 * Math.PI) + 0.5);
+    if (Math.abs(dif) > this.rThresh && dist > this.fThresh) {
+      this.rSpeed -= this.rAccel * (dif > 0 ? 1 : -1);
+    }
+    this.rSpeed *= 1 - this.rRes;
+    if (Math.abs(this.rSpeed) > this.rFric) {
+      this.rSpeed -= this.rFric * (this.rSpeed > 0 ? 1 : -1);
+    } else {
+      this.rSpeed = 0;
+    }
+
+    // Update position and angle
+    this.absAngle += this.rSpeed;
+    this.absAngle -= 2 * Math.PI * Math.floor(this.absAngle / (2 * Math.PI) + 0.5);
+    this.x += this.fSpeed * Math.cos(this.absAngle);
+    this.y += this.fSpeed * Math.sin(this.absAngle);
+
+    // Follow children
+    this.absAngle += Math.PI;
+    for (const child of this.children) {
+      child.follow(true);
+    }
+    this.absAngle -= Math.PI;
+
+    // Draw
+    this.draw(true);
+  }
+
+  draw(iter) {
+    const r = 4;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, r, Math.PI / 4 + this.absAngle, 7 * Math.PI / 4 + this.absAngle);
+    ctx.moveTo(this.x + r * Math.cos(7 * Math.PI / 4 + this.absAngle), this.y + r * Math.sin(7 * Math.PI / 4 + this.absAngle));
+    ctx.lineTo(this.x + r * Math.cos(this.absAngle) * Math.sqrt(2), this.y + r * Math.sin(this.absAngle) * Math.sqrt(2));
+    ctx.lineTo(this.x + r * Math.cos(Math.PI / 4 + this.absAngle), this.y + r * Math.sin(Math.PI / 4 + this.absAngle));
+    ctx.stroke();
+    if (iter) {
+      for (const child of this.children) {
+        child.draw(true);
+      }
+    }
+  }
+}
+
+// Setup lizard
+function setupLizard(size, segments) {
+  const critter = new Creature(
     window.innerWidth / 2,
     window.innerHeight / 2,
     0,
-    s * 10,
-    s * 2,
+    size * 10,
+    size * 2,
     0.5,
     16,
     0.5,
@@ -134,65 +219,33 @@ function setupLizard(size, legs, tail) {
     0.5,
     0.3
   );
-  var spinal = critter;
-  // Neck
-  for (var i = 0; i < 6; i++) {
-    spinal = new Segment(spinal, s * 4, 0, 3.1415 * 2 / 3, 1.1);
-    for (var ii = -1; ii <= 1; ii += 2) {
-      var node = new Segment(spinal, s * 3, ii, 0.1, 2);
-      for (var iii = 0; iii < 3; iii++) {
-        node = new Segment(node, s * 0.1, -ii * 0.1, 0.1, 2);
-      }
-    }
+  let node = critter;
+  for (let i = 0; i < segments; i++) {
+    node = new Segment(node, size * 4, 0, Math.PI * 2 / 3, 1.1);
   }
-  // Torso and legs
-  for (var i = 0; i < legs; i++) {
-    if (i > 0) {
-      for (var ii = 0; ii < 6; ii++) {
-        spinal = new Segment(spinal, s * 4, 0, 1.571, 1.5);
-        for (var iii = -1; iii <= 1; iii += 2) {
-          var node = new Segment(spinal, s * 3, iii * 1.571, 0.1, 1.5);
-          for (var iv = 0; iv < 3; iv++) {
-            node = new Segment(node, s * 3, -iii * 0.3, 0.1, 2);
-          }
-        }
-      }
-    }
-    for (var ii = -1; ii <= 1; ii += 2) {
-      var node = new Segment(spinal, s * 12, ii * 0.785, 0, 8); // Hip
-      node = new Segment(node, s * 16, -ii * 0.785, 6.28, 1); // Humerus
-      node = new Segment(node, s * 16, ii * 1.571, 3.1415, 2); // Forearm
-      for (var iii = 0; iii < 4; iii++) {
-        new Segment(node, s * 4, (iii / 3 - 0.5) * 1.571, 0.1, 4);
-      }
-      new LegSystem(node, 3, s * 12, critter, 4);
-    }
-  }
-  // Tail
-  for (var i = 0; i < tail; i++) {
-    spinal = new Segment(spinal, s * 4, 0, 3.1415 * 2 / 3, 1.1);
-    for (var ii = -1; ii <= 1; ii += 2) {
-      var node = new Segment(spinal, s * 3, ii, 0.1, 2);
-      for (var iii = 0; iii < 3; iii++) {
-        node = new Segment(node, s * 3 * (tail - i) / tail, -ii * 0.1, 0.1, 2);
-      }
-    }
-  }
-  setInterval(function() {
+
+  // Animation loop
+  function animate() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    critter.follow(Input.mouse.x, Input.mouse.y);
-    // Draw particles after the lizard to ensure they appear in the background
-    for (let particle of particles) {
+    // Draw particles
+    for (const particle of particles) {
       particle.update();
       particle.draw();
     }
-  }, 33);
+    // Draw lizard
+    critter.follow(Input.mouse.x, Input.mouse.y);
+    requestAnimationFrame(animate);
+  }
+  animate();
 }
 
-// Set up the lizard with random legs and tail
-var legNum = Math.floor(1 + Math.random() * 12);
-setupLizard(
-  8 / Math.sqrt(legNum),
-  legNum,
-  Math.floor(4 + Math.random() * legNum * 8)
-);
+// Initialize canvas styles
+canvas.style.position = "absolute";
+canvas.style.left = "0px";
+canvas.style.top = "0px";
+document.body.style.overflow = "hidden";
+ctx.strokeStyle = "white";
+ctx.lineWidth = 2; // Thicker stroke for visibility
+
+// Start lizard with fixed parameters for simplicity
+setupLizard(2, 20); // Smaller size, fewer segments for clarity
