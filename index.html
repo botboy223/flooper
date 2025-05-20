@@ -12,17 +12,35 @@
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
       font-family: 'Orbitron', sans-serif;
-      background: #0f2027; /* fallback */
-      background: linear-gradient(135deg, #2c5364, #203a43, #0f2027);
       color: #fff;
       overflow: hidden;
-      height: 100vh;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
       position: relative;
+      z-index: 1;
+    }
+
+    canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      z-index: -1;
+      pointer-events: none;
     }
 
     header, footer {
+      width: 100%;
       text-align: center;
       padding: 1rem;
       background: rgba(255, 255, 255, 0.05);
@@ -31,30 +49,28 @@
     }
 
     footer {
-      position: absolute;
-      bottom: 0;
-      width: 100%;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
+      border-bottom: none;
     }
 
-    .content {
+    main {
+      flex: 1;
+      width: 100%;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 75vh;
-      text-align: center;
-      padding: 2rem;
     }
 
     .glass-box {
       background: rgba(255, 255, 255, 0.1);
       box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
       border-radius: 20px;
       border: 1px solid rgba(255, 255, 255, 0.18);
       padding: 2rem;
       max-width: 600px;
+      text-align: center;
       animation: float 6s ease-in-out infinite;
     }
 
@@ -68,25 +84,32 @@
       margin-bottom: 1rem;
     }
 
+    p {
+      line-height: 1.6;
+      margin-bottom: 1rem;
+    }
+
     .emoji {
       font-size: 2rem;
     }
   </style>
 </head>
 <body>
-  <header>
+  <canvas></canvas>
+
+  <header class="glass-box">
     <h1>🚗 Reptile Cursor Garage 🚀</h1>
   </header>
 
-  <div class="content">
+  <main>
     <div class="glass-box">
       <h2>🔥 Featured Car: Tesla Model X 🔋</h2>
       <p>🚘 Sleek Design | ⚡ Electric Power | 🧠 AI Assisted</p>
       <p>💡 The Tesla Model X is an all-electric SUV with falcon wing doors, fast acceleration, and advanced autopilot features. Perfect for eco-conscious tech lovers!</p>
     </div>
-  </div>
+  </main>
 
-  <footer>
+  <footer class="glass-box">
     <p>Made with ❤️ by Sujit Zugare | @code_wars_official</p>
   </footer>
 
